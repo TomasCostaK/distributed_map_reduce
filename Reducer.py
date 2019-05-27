@@ -6,13 +6,21 @@ class Reducer:
 		logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',datefmt='%m-%d %H:%M:%S')
 		self.logger = logging.getLogger('reducer')
 
-	def reduce(self,arrayMapper):
-		wordMap = {}
-		for word in arrayMapper:
-			if word not in wordMap:
-				wordMap[word] = 1
+	def reduce(self,array1,array2):
+		arrayFinal = []
+
+		for mapSet in array1:
+			inThere = False
+			word = next(iter(mapSet))
+			numero = mapSet.get(word)
+
+			for w1 in arrayFinal:
+				if mapSet == w1:
+					numGotten = arrayFinal.get(mapSet)
+					w1.put(numGotten+numero)
+
 			else:
-				value = wordMap.get(word,"")
-				value+=1
-				wordMap[word] = value
-		return wordMap
+				arrayFinal.append({word:1})		
+
+
+		return arrayFinal

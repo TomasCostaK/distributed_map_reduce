@@ -12,8 +12,29 @@ class Mapper():
 
 	def map(self,blob):
 		#Ver um algoritmo melhor que isto?
-		print(blob)
-		wordMap = {}
+		wordArray = []
 		arrayMapper = re.split("[\s*\d*',''.']+",blob)
-		return arrayMapper
+		#Algorithm
+		for word in arrayMapper:
+			inThere = False
+			for mapWord in wordArray:
+				numGotten = mapWord.get(word)
+				if numGotten != None:
+					mapWord[word]=numGotten+1
+					inThere = True
+					break
+			if not inThere:
+				wordArray.append({word:1})
+
+
+		print("WORDMAPPER:")
+		for word in wordArray:
+			print(word, end=", ")
+		print("\n")
+
+		return wordArray
+
+
+					
+
 		
