@@ -8,14 +8,15 @@ logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(name)-12s %(leveln
 logger = logging.getLogger('coordinator')
 
 async def handle_echo(reader, writer):
-    data = await reader.read(100)
-    message = data.decode()
-    addr = writer.get_extra_info('peername')
-    print("Received %r from %r" % (message, addr))
+    while True:
+        data = await reader.read(100)
+        message = data.decode()
+        addr = writer.get_extra_info('peername')
+        print("Received %r from %r" % (message, addr))
 
-    print("Send: %r" % message)
-    writer.write(data)
-    await writer.drain()
+        print("Send: %r" % message)
+        writer.write(data)
+        await writer.drain()
 
     print("Close the client socket")
     writer.close()
