@@ -15,16 +15,20 @@ class Mapper():
 		wordArray = []
 		arrayMapper = re.split("[\s*\d*',''.']+",blob)
 		#Algorithm
+		# for word in arrayMapper:
+		# 	inThere = False
+		# 	for mapWord in wordArray:
+		# 		if mapWord[0] == word:
+		# 			print(word)
+		# 			mapWord[1]+=1
+		# 			inThere = True
+		# 			break
+		# 	if not inThere:
+		# 		wordArray.append((word,1))
 		for word in arrayMapper:
-			inThere = False
-			for mapWord in wordArray:
-				numGotten = mapWord.get(word)
-				if numGotten != None:
-					mapWord[word]=numGotten+1
-					inThere = True
-					break
-			if not inThere:
-				wordArray.append({word:1})
+			word = word.lower()
+			if word.isalpha():
+				wordArray.append((word,1))
 
 
 		print("WORDMAPPER:")

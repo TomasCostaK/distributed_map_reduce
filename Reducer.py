@@ -8,19 +8,44 @@ class Reducer:
 
 	def reduce(self,array1,array2):
 		arrayFinal = []
+		for tup in array1:
+			notThere = True
+			word = tup[0]
+			value = tup[1]
+			for tup2 in arrayFinal:
+				if word==tup2[0]:
+					value=tup2[1]
+					arrayFinal.remove(tup2)
+					arrayFinal.append((word,value+1))
+					notThere= False
+					break
+			if notThere:
+				arrayFinal.append(tup)
 
-		for mapSet in array1:
-			inThere = False
-			word = next(iter(mapSet))
-			numero = mapSet.get(word)
+		for tup in array2:
+			notThere = True
+			word = tup[0]
+			value = tup[1]
+			for tup2 in arrayFinal:
+				if word==tup2[0]:
+					value=tup2[1]
+					arrayFinal.remove(tup2)
+					arrayFinal.append((word,value+1))
+					notThere = False
+					break
+			if notThere:
+				arrayFinal.append(tup)
 
-			for w1 in arrayFinal:
-				if mapSet == w1:
-					numGotten = arrayFinal.get(mapSet)
-					w1.put(numGotten+numero)
+		# for mapSet in array1:
+		# 	inThere = False
+		# 	word = next(iter(mapSet))
+		# 	numero = mapSet.get(word)
+		# 	print(word, end=' ')
+		# 	print(numero)
 
-			else:
-				arrayFinal.append({word:1})		
+		# 	if mapSet in arrayFinal:
+		# 		print("Im in")
 
-
+		# 	else:
+		# 		arrayFinal.append((word,1))	
 		return arrayFinal
