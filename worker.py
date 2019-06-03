@@ -43,23 +43,27 @@ class Worker():
         while True:
             message_json = self.queue_out.get() # get message from out queue
 
-            print('Send: %r' % message_json)
+            logger.info('Sending: %r' % message_json)
             writer.write(message_json.encode()) # send message
 
-            data = await reader.read(100)
-            print('Received: %r' % data.decode())
+            data = await reader.read(4)
+            logger.info('Received (size of json str): %r ' % data.decode() )
+
+            data = await reader.read(int(data.decode()))
+            logger.info('Received: %r ' % data.decode() )
+
             self.receive(data.decode()) # receive message
 
             self.proccess_msg() # process message
 
-        print('Close the socket')
+        logger.info('Close the socket')
         writer.close()
 
 def main(args):
     worker = Worker(1, args.hostname, args.port)
     
-    message = 'Hello World'
-    worker.send(message)
+    # message = 'Hello World'
+    # worker.send(message)
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(worker.tcp_echo_client(worker.host, worker.port, loop))
