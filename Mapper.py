@@ -31,10 +31,10 @@ class Mapper():
 				wordArray.append((word,1))
 
 
-		print("WORDMAPPER:")
-		for word in wordArray:
-			print(word, end=", ")
-		print("\n")
+		# print("WORDMAPPER:")
+		# for word in wordArray:
+		# 	print(word, end=", ")
+		# print("\n")
 
 		return wordArray
 

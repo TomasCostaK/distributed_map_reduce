@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(name)-12s %(leveln
 logger = logging.getLogger('coordinator')
 
 queue_out = queue.Queue()
+data_array = queue.Queue() # array that stores results from mapping and reducing
 
 # def split_data(string):
 #     max_size = 1024
@@ -25,27 +26,54 @@ queue_out = queue.Queue()
 #         assert len(json.dumps(msg)) == 1024
 #     return l
 
+def proccess_msg(message_json):
+    message = json.loads(message_json)
+    if(message['task']=='register'):
+        return
+    data_array.put(message['value'])
+    get_new_msg()
+
+def get_new_msg():
+    if(data_array.qsize() >= 2):
+        new_message = []
+        new_message.append(data_array.get())
+        new_message.append(data_array.get())
+        queue_out.put(json.dumps( { 'task' : 'reduce_request', 'value' : new_message } ))
+    else:
+        logger.info('REDUCE COMPLETED')
+
 def parse_msg(msg):
     msg_len = len(msg)
     if msg_len < 10:
-        return '000' + str(msg_len) + msg
+        return '00000' + str(msg_len) + msg
     elif msg_len < 100:
-        return '00' + str(msg_len) + msg
+        return '0000' + str(msg_len) + msg
     elif msg_len < 1000:
         return '000' + str(msg_len) + msg
+    elif msg_len < 10000:
+        return '00' + str(msg_len) + msg
+    elif msg_len < 100000:
+        return '0' + str(msg_len) + msg
     else:
         return str(msg_len) + msg
 
 async def handle_echo(reader, writer):
     while True:
-        data = await reader.read(1024)
+
+        data = await reader.read(6)
+        addr = writer.get_extra_info('peername')
+        logger.info('Received (size of json str): %r ' % data.decode() )
+
+        data = await reader.read(int(data.decode()))
 
         message = data.decode()
-        addr = writer.get_extra_info('peername')
 
         logger.debug("Received %r from %r" % (message, addr))
 
+        proccess_msg(message)
+
         message = queue_out.get()
+
         logger.debug("Sending: %r " % parse_msg(message))
         writer.write(parse_msg(message).encode())
 
@@ -69,7 +97,7 @@ def main(args):
                 blob += ch
             logger.debug('\nBlob: %s', blob)
             datastore.append(blob)
-            queue_out.put(json.dumps({ 'task' : 'reduce_request', 'value' : blob }))
+            queue_out.put(json.dumps({ 'task' : 'map_request', 'value' : blob }))
 
     loop = asyncio.get_event_loop()
     coro = asyncio.start_server(handle_echo, 'localhost', args.port, loop=loop)

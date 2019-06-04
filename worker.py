@@ -17,12 +17,27 @@ class Worker():
         self.host = host
         self.port = port
         self.worker_id = worker_id
-        mapper = Mapper()
-        reducer = Reducer()
+        self.mapper = Mapper()
+        self.reducer = Reducer()
         self.queue_in = queue.Queue()
         self.queue_out = queue.Queue()
         logger.debug('Worker connecting to %s:%d', self.host, self.port)
         self.register() # register on first time
+
+    def parse_msg(self, msg):
+        msg_len = len(msg)
+        if msg_len < 10:
+            return '00000' + str(msg_len) + msg
+        elif msg_len < 100:
+            return '0000' + str(msg_len) + msg
+        elif msg_len < 1000:
+            return '000' + str(msg_len) + msg
+        elif msg_len < 10000:
+            return '00' + str(msg_len) + msg
+        elif msg_len < 100000:
+            return '0' + str(msg_len) + msg
+        else:
+            return str(msg_len) + msg
 
     def send(self, message):
         self.queue_out.put(json.dumps(message))
@@ -31,7 +46,16 @@ class Worker():
         self.queue_in.put(json.loads(message))
 
     def proccess_msg(self):
-        pass
+        msg = self.queue_in.get()
+        if msg['task'] == 'map_request':
+            # logger.debug('THIS IS A MAP REQ')
+            result = self.mapper.map(msg['value'])
+            self.send({ 'task' : 'map_reply', 'value' : result })
+        elif msg['task'] == 'reduce_request':
+            # logger.debug('THIS IS A REDUCE REQ')
+            result = self.reducer.reduce(msg['value'])
+            self.send({ 'task' : 'reduce_reply', 'value' : result })
+        # logger.debug(result)
 
     def register(self):
         message = { 'task' : 'register', 'id' : self.worker_id }
@@ -42,11 +66,12 @@ class Worker():
 
         while True:
             message_json = self.queue_out.get() # get message from out queue
+            parsed_msg = self.parse_msg(message_json)
 
-            logger.info('Sending: %r' % message_json)
-            writer.write(message_json.encode()) # send message
+            logger.info('Sending: %r' % parsed_msg)
+            writer.write(parsed_msg.encode()) # send message
 
-            data = await reader.read(4)
+            data = await reader.read(6)
             logger.info('Received (size of json str): %r ' % data.decode() )
 
             data = await reader.read(int(data.decode()))
