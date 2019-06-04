@@ -42,7 +42,6 @@ class Worker():
     def send(self, message):
         self.queue_out.put(json.dumps(message))
 
-<<<<<<< HEAD
     def receive(self, message):
         self.queue_in.put(json.loads(message))
 
@@ -74,10 +73,6 @@ class Worker():
 
             data = await reader.read(6)
             logger.info('Received (size of json str): %r ' % data.decode() )
-=======
-def main(args):
-    logger.debug('Connecting %d to %s:%d', args.id, args.hostname, args.port)
->>>>>>> 3c896b0d83723792434b6ff4606cdc0c253641b4
 
             data = await reader.read(int(data.decode()))
             logger.info('Received: %r ' % data.decode() )
