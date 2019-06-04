@@ -8,7 +8,9 @@ class Reducer:
 
 	def reduce(self, array_of_arrays):
             array1 = array_of_arrays[0]
+            print(array1)
             array2 = array_of_arrays[1]
+            print(array2)
             arrayFinal = []
             for tup in array1:
                 notThere = True
