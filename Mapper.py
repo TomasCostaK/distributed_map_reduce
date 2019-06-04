@@ -1,8 +1,9 @@
 import logging
 import re
+import locale
+from functools import cmp_to_key
 
-#esta a receber = 1\nbrilha brilha olá
-#retorna texto tipo = [('brilha',1), ('brilha',1), ('ola',1)]
+locale.setlocale(locale.LC_ALL, 'pt_PT.UTF-8')
 
 class Mapper():
 	"""docstring for Mapper"""
@@ -13,28 +14,12 @@ class Mapper():
 	def map(self,blob):
 		#Ver um algoritmo melhor que isto?
 		wordArray = []
-		arrayMapper = re.split("[\s*\d*',''.']+",blob)
-		#Algorithm
-		# for word in arrayMapper:
-		# 	inThere = False
-		# 	for mapWord in wordArray:
-		# 		if mapWord[0] == word:
-		# 			print(word)
-		# 			mapWord[1]+=1
-		# 			inThere = True
-		# 			break
-		# 	if not inThere:
-		# 		wordArray.append((word,1))
+		arrayMapper = sorted(re.split("[\s*\d*',''.']+",blob), key=cmp_to_key(locale.strcoll))
+
 		for word in arrayMapper:
 			word = word.lower()
 			if word.isalpha():
 				wordArray.append((word,1))
-
-
-		# print("WORDMAPPER:")
-		# for word in wordArray:
-		# 	print(word, end=", ")
-		# print("\n")
 
 		return wordArray
 
