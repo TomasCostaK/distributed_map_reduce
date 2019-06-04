@@ -42,6 +42,7 @@ class Worker():
     def send(self, message):
         self.queue_out.put(json.dumps(message))
 
+<<<<<<< HEAD
     def receive(self, message):
         self.queue_in.put(json.loads(message))
 
@@ -73,6 +74,10 @@ class Worker():
 
             data = await reader.read(6)
             logger.info('Received (size of json str): %r ' % data.decode() )
+=======
+def main(args):
+    logger.debug('Connecting %d to %s:%d', args.id, args.hostname, args.port)
+>>>>>>> 3c896b0d83723792434b6ff4606cdc0c253641b4
 
             data = await reader.read(int(data.decode()))
             logger.info('Received: %r ' % data.decode() )
@@ -97,9 +102,9 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='MapReduce worker')
+    parser.add_argument('--id', dest='id', type=int, help='worker id', default=0)
     parser.add_argument('--port', dest='port', type=int, help='coordinator port', default=8765)
     parser.add_argument('--hostname', dest='hostname', type=str, help='coordinator hostname', default='localhost')
     args = parser.parse_args()
     
     main(args)
-
