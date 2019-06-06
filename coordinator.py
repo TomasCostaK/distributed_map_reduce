@@ -14,6 +14,7 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%m-%d %H:%M:%S')
 logger = logging.getLogger('coordinator')
 
+start = time.time()
 queue_out = queue.Queue()
 data_array = queue.Queue()  # array that stores results from mapping and reducing
 
@@ -41,14 +42,25 @@ def proccess_msg(message_json):
 
 
 def get_new_msg():
-    if(data_array.qsize() >= 2):
-        new_message = []
-        new_message.append(data_array.get())
-        new_message.append(data_array.get())
-        queue_out.put(json.dumps(
-            {'task': 'reduce_request', 'value': new_message}))
+    #Tambem nao queremos fazer muito mais porque senao perdemos muito trabalho
+    queueSize = data_array.qsize()
+    if(queueSize >= 2):
+        if(queueSize % 2 == 0): #enviamos 2 sempre que pares
+            new_message = []
+            new_message.append(data_array.get())
+            new_message.append(data_array.get())
+            queue_out.put(json.dumps(
+                {'task': 'reduce_request', 'value': new_message}))
+        else: #enviamos 3 sempre que temos impares
+            new_message = []
+            new_message.append(data_array.get())
+            new_message.append(data_array.get())
+            new_message.append(data_array.get())
+            queue_out.put(json.dumps(
+                {'task': 'reduce_request', 'value': new_message}))
     else:
-        logger.info('REDUCE COMPLETED')
+        end = time.time()
+        logger.info('TIME TAKEN: %f (s)', end-start)
 
 
 def parse_msg(msg):
@@ -80,7 +92,6 @@ def parse_msg(msg):
 
 async def handle_echo(reader, writer):
     while True:
-        start = time.time()
         data = await reader.read(7)
         addr = writer.get_extra_info('peername')
 
@@ -130,6 +141,7 @@ def main(args):
                 blob += ch
             logger.debug('\nBlob: %s', blob)
             datastore.append(blob)
+            start = time.time()
             queue_out.put(json.dumps({'task': 'map_request', 'value': blob}))
 
     loop = asyncio.get_event_loop()

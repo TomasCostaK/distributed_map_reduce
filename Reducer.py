@@ -15,7 +15,6 @@ class Reducer:
         # uma lista vazia pq so aceitamos 2 listas ou mais
         if (len(array_of_arrays) == 1): #verificar este workaround
             array_of_arrays.append([])
-            print(array_of_arrays)
         
         while(len(array_of_arrays) > 1):
             #Criar sempre o arrayFinal que vai estar reduced
