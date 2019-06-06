@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.DEBUG,
 logger = logging.getLogger('coordinator')
 
 start = time.time()
+connectionsMap = {}
 queue_out = queue.Queue()
 data_array = queue.Queue()  # array that stores results from mapping and reducing
 
@@ -95,6 +96,7 @@ async def handle_echo(reader, writer):
         data = await reader.read(7)
         addr = writer.get_extra_info('peername')
 
+
         logger.info('Received (size of json str): %r ' % data.decode())
 
         cur_size = 0
@@ -109,14 +111,21 @@ async def handle_echo(reader, writer):
         data = await reader.read(total_size - cur_size)
         final_str = final_str + data.decode()
 
-        logger.info('Received: %r ' % final_str )
+        #logger.info('Received: %r ' % final_str )
+        logger.info('Received from: %s ', addr )
         message = final_str
 
         proccess_msg(message)
 
         message = queue_out.get()
 
-        logger.debug("Sending: %r " % parse_msg(message))
+        connectionsMap[addr]=message
+
+        #logger.debug("Sending: %r " % parse_msg(message))
+        logger.info('Sending: %s ', addr )
+
+        logger.info('CONNS MAP: %r' % connectionsMap)
+        
         writer.write(parse_msg(message).encode())
 
         await writer.drain()

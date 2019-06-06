@@ -74,7 +74,8 @@ class Worker():
             message_json = self.queue_out.get() # get message from out queue
             parsed_msg = self.parse_msg(message_json)
 
-            logger.info('Sending: %r' % parsed_msg)
+            logger.info('Sending to: %s' % host)
+            #logger.info('Sending: %r' % parsed_msg)
             writer.write(parsed_msg.encode()) # send message
 
             data = await reader.read(7)
@@ -92,7 +93,8 @@ class Worker():
             data = await reader.read(total_size - cur_size )
             final_str = final_str + data.decode()
 
-            logger.info('Received: %r ' % final_str )
+            #logger.info('Received: %r ' % final_str )
+            logger.info('Received from: %s ' % host )
 
             self.receive(final_str) # receive message
 
