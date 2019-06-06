@@ -5,6 +5,7 @@ import logging
 import argparse
 import asyncio
 import queue
+import time
 import json
 
 
@@ -74,7 +75,7 @@ def parse_msg(msg):
 
 async def handle_echo(reader, writer):
     while True:
-
+        start = time.time()
         data = await reader.read(7)
         addr = writer.get_extra_info('peername')
 
@@ -84,10 +85,10 @@ async def handle_echo(reader, writer):
         total_size = int(data.decode())
         final_str = ''
 
-        while (total_size - cur_size) >= 4096 :
-            data = await reader.read(4096)
+        while (total_size - cur_size) >= 1024 :
+            data = await reader.read(1024)
             final_str = final_str + data.decode()
-            cur_size += 4096
+            cur_size += len(data)
 
         data = await reader.read(total_size - cur_size)
         final_str = final_str + data.decode()
@@ -106,7 +107,6 @@ async def handle_echo(reader, writer):
 
     logger.debug("Close the client socket")
     writer.close()
-
 
 def main(args):
     datastore = []
@@ -145,7 +145,7 @@ def main(args):
     loop.run_until_complete(server.wait_closed())
     loop.close()
 
-    hist = []
+    hist = data_array.get()
     # store final histogram into a CSV file
     with args.out as f:
         csv_writer = csv.writer(f, delimiter=',',

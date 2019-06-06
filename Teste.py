@@ -7,7 +7,7 @@ def main():
 	arrayMap = mapper.map("Esta à Frase, fRASe tomas frase esta unica única")
 	arrayMap2 = mapper.map("única Este cena\n. frase única")
 	arrayMap3 = mapper.map("à frase à")
-	mapFinal = reducer.reduce([arrayMap,[]])
+	mapFinal = reducer.reduce([arrayMap,arrayMap2,arrayMap3])
 
 	print("Reduced: ",mapFinal)
 

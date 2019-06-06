@@ -30,4 +30,5 @@ class Mapper():
                 if word.isalpha():
                     wordArray.append((word.lower(),1))
 
+            print(wordArray)
             return wordArray

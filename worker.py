@@ -84,10 +84,10 @@ class Worker():
             total_size = int(data.decode())
             final_str = ''
 
-            while (total_size - cur_size) >= 4096 :
-                data = await reader.read(4096)
+            while (total_size - cur_size) >= 1024 :
+                data = await reader.read(1024)
                 final_str = final_str + data.decode()
-                cur_size += 4096
+                cur_size += len(data)
 
             data = await reader.read(total_size - cur_size )
             final_str = final_str + data.decode()
