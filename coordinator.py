@@ -53,6 +53,9 @@ def get_new_msg():
 
 def parse_msg(msg):
     msg_len = len(msg)
+
+    #return '0'*(7-msg_len) + str(msg_len) + msg
+
     if msg_len < 10:
         return '000000' + str(msg_len) + msg
     elif msg_len < 100:
@@ -71,6 +74,8 @@ def parse_msg(msg):
     #     return '0' + str(msg_len) + msg
     else:
         return str(msg_len) + msg
+
+    
 
 
 async def handle_echo(reader, writer):

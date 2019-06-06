@@ -11,14 +11,15 @@ class Reducer:
         self.logger = logging.getLogger('reducer')
 
     def reduce(self, array_of_arrays):
-        #Caso so receba um map para dar reduce, vamos ter que enviar juntamento com uma lista vazia pq so aceitamos 2 listas ou mais
+        # Caso so receba um map para dar reduce, vamos ter que enviar juntamento com 
+        # uma lista vazia pq so aceitamos 2 listas ou mais
+        if (len(array_of_arrays) == 1): #verificar este workaround
+            array_of_arrays.append([])
+            print(array_of_arrays)
+        
         while(len(array_of_arrays) > 1):
             #Criar sempre o arrayFinal que vai estar reduced
             arrayFinal = []
-            
-            #Criar 2 arrays temporarios para nao manipularmos arrays enquanto o iteramos
-            arrayTemp1 = []
-            arrayTemp2 = []
 
             #Escolher os 2 primeiros enviados
             array1 = array_of_arrays[0]
@@ -29,34 +30,13 @@ class Reducer:
             array_of_arrays.remove(array2)
 
             #Remover repetidos que estao seguidos do array1
-            arraySize = len(array1)-1
-            ind = 0
-            while ind <= arraySize:
-                count = array1[ind][1]
-                while(ind<arraySize and array1[ind]==array1[ind+1]):
-                    count+=1
-                    ind+=1;
-                arrayTemp1.append((array1[ind][0],count))
-                ind+=1
-
-            #Igualar o temporario ao suposto array1
-            array1 = arrayTemp1
+            array1 = self.removeRepeats(array1)
 
             #Remover repetidos que estao seguidos do array2
-            arraySize = len(array2)-1
-            ind = 0
-            while ind <= arraySize:
-                count = array2[ind][1]
-                while(ind<arraySize and array2[ind]==array2[ind+1]):
-                    count+=1
-                    ind+=1;
-                arrayTemp2.append((array2[ind][0],count))
-                ind+=1
+            array2 = self.removeRepeats(array2)
 
-            #Igualar o temporario ao suposto array2
-            array2 = arrayTemp2
-
-            #Check which list is smallest (This code doesnt look very good, think abut it later)
+            #Check which list is smallest 
+            # (This code doesnt look very good, think abut it later)
             n = len(array1)
             m = len(array2)
 
@@ -67,16 +47,8 @@ class Reducer:
                 smallArray = array1
                 bigArray = array2
 
-            #Go through both arrays to join them into one
-            for word,count in smallArray:
-                #Este binary search vai retornar
-                count2 = self.binarySearch(bigArray, 0 , len(bigArray)-1, word)
-                countFinal = count2 + count
-
-                arrayFinal.append((word,countFinal))
-
-            #Append the rest to the array
-            arrayFinal.extend(bigArray)
+            #Iterate over small array
+            self.iterateSmallArray(smallArray,bigArray,arrayFinal)
 
             #Sort them with mergesort with locale PT
             self.mergeSort(arrayFinal) 
@@ -140,3 +112,29 @@ class Reducer:
                 arr[k] = R[j] 
                 j+=1
                 k+=1
+        
+    def iterateSmallArray(self,smallArray, bigArray, arrayFinal):
+        #Go through both arrays to join them into one
+        for word,count in smallArray:
+            #Este binary search vai retornar
+            count2 = self.binarySearch(bigArray, 0 , len(bigArray)-1, word)
+            countFinal = count2 + count
+
+            arrayFinal.append((word,countFinal))
+
+            #Append the rest to the array
+        arrayFinal.extend(bigArray)
+
+    
+    def removeRepeats(self, arr):
+        arrayTemp = []
+        arraySize = len(arr)-1
+        ind = 0
+        while ind <= arraySize:
+            count = arr[ind][1]
+            while(ind<arraySize and arr[ind]==arr[ind+1]):
+                count+=1
+                ind+=1;
+            arrayTemp.append((arr[ind][0],count))
+            ind+=1
+        return arrayTemp

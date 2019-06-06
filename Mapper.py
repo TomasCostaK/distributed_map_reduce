@@ -29,6 +29,4 @@ class Mapper():
             for word in arrayMapper:
                 if word.isalpha():
                     wordArray.append((word.lower(),1))
-
-            print(wordArray)
             return wordArray
