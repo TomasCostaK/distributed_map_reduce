@@ -53,10 +53,16 @@ def get_new_msg():
 def parse_msg(msg):
     msg_len = len(msg)
     if msg_len < 10:
-        return '000' + str(msg_len) + msg
+        return '000000' + str(msg_len) + msg
     elif msg_len < 100:
-        return '00' + str(msg_len) + msg
+        return '00000' + str(msg_len) + msg
     elif msg_len < 1000:
+        return '0000' + str(msg_len) + msg
+    elif msg_len < 10000:
+        return '000' + str(msg_len) + msg
+    elif msg_len < 100000:
+        return '00' + str(msg_len) + msg
+    elif msg_len < 1000000:
         return '0' + str(msg_len) + msg
     # elif msg_len < 10000:
     #     return '00' + str(msg_len) + msg
@@ -69,7 +75,7 @@ def parse_msg(msg):
 async def handle_echo(reader, writer):
     while True:
 
-        data = await reader.read(4)
+        data = await reader.read(7)
         addr = writer.get_extra_info('peername')
 
         logger.info('Received (size of json str): %r ' % data.decode())
@@ -78,10 +84,10 @@ async def handle_echo(reader, writer):
         total_size = int(data.decode())
         final_str = ''
 
-        while (total_size - cur_size) >= 1024 :
-            data = await reader.read(1024)
+        while (total_size - cur_size) >= 4096 :
+            data = await reader.read(4096)
             final_str = final_str + data.decode()
-            cur_size += 1024
+            cur_size += 4096
 
         data = await reader.read(total_size - cur_size)
         final_str = final_str + data.decode()
@@ -94,7 +100,7 @@ async def handle_echo(reader, writer):
         message = queue_out.get()
 
         logger.debug("Sending: %r " % parse_msg(message))
-        writer.write(parse_msg(message).encode('UTF-8'))
+        writer.write(parse_msg(message).encode())
 
         await writer.drain()
 

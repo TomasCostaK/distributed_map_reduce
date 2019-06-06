@@ -27,10 +27,16 @@ class Worker():
     def parse_msg(self, msg):
         msg_len = len(msg)
         if msg_len < 10:
-            return '000' + str(msg_len) + msg
+            return '000000' + str(msg_len) + msg
         elif msg_len < 100:
-            return '00' + str(msg_len) + msg
+            return '00000' + str(msg_len) + msg
         elif msg_len < 1000:
+            return '0000' + str(msg_len) + msg
+        elif msg_len < 10000:
+            return '000' + str(msg_len) + msg
+        elif msg_len < 100000:
+            return '00' + str(msg_len) + msg
+        elif msg_len < 1000000:
             return '0' + str(msg_len) + msg
         # elif msg_len < 10000:
         #     return '00' + str(msg_len) + msg
@@ -71,19 +77,19 @@ class Worker():
             logger.info('Sending: %r' % parsed_msg)
             writer.write(parsed_msg.encode()) # send message
 
-            data = await reader.read(4)
+            data = await reader.read(7)
             logger.info('Received (size of json str): %r ' % data.decode() )
 
-            cur_size = 0
+            cur_size = 0  
             total_size = int(data.decode())
             final_str = ''
 
-            while (total_size - cur_size) >= 1024 :
-                data = await reader.read(1024)
+            while (total_size - cur_size) >= 4096 :
+                data = await reader.read(4096)
                 final_str = final_str + data.decode()
-                cur_size += 1024
+                cur_size += 4096
 
-            data = await reader.read(total_size - cur_size)
+            data = await reader.read(total_size - cur_size )
             final_str = final_str + data.decode()
 
             logger.info('Received: %r ' % final_str )
