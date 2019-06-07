@@ -26,24 +26,25 @@ class Worker():
 
     def parse_msg(self, msg):
         msg_len = len(msg)
-        if msg_len < 10:
-            return '000000' + str(msg_len) + msg
-        elif msg_len < 100:
-            return '00000' + str(msg_len) + msg
-        elif msg_len < 1000:
-            return '0000' + str(msg_len) + msg
-        elif msg_len < 10000:
-            return '000' + str(msg_len) + msg
-        elif msg_len < 100000:
-            return '00' + str(msg_len) + msg
-        elif msg_len < 1000000:
-            return '0' + str(msg_len) + msg
+        return '0'*(7-len(str(msg_len))) + str(msg_len) + msg
+        # if msg_len < 10:
+        #     return '000000' + str(msg_len) + msg
+        # elif msg_len < 100:
+        #     return '00000' + str(msg_len) + msg
+        # elif msg_len < 1000:
+        #     return '0000' + str(msg_len) + msg
+        # elif msg_len < 10000:
+        #     return '000' + str(msg_len) + msg
+        # elif msg_len < 100000:
+        #     return '00' + str(msg_len) + msg
+        # elif msg_len < 1000000:
+        #     return '0' + str(msg_len) + msg
         # elif msg_len < 10000:
         #     return '00' + str(msg_len) + msg
         # elif msg_len < 100000:
         #     return '0' + str(msg_len) + msg
-        else:
-            return str(msg_len) + msg
+        # else:
+        #     return str(msg_len) + msg
 
     def send(self, message):
         self.queue_out.put(json.dumps(message))
