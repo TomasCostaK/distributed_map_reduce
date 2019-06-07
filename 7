@@ -23,7 +23,7 @@ class Worker():
 
     def parse_msg(self, msg):
         msg_len = len(msg)
-        return '0'*(7-len(str(int(msg_len)))) + str(msg_len) + msg
+        return '0'*(7-len(str(msg_len))) + str(msg_len) + msg
 
     def proccess_msg(self, msg):
         # msg = self.queue_in.get()
@@ -37,6 +37,7 @@ class Worker():
             result = self.reducer.reduce(msg['value'])
             reply = { 'task' : 'reduce_reply', 'value' : result }
             return reply
+        logger.debug(result)
 
     def register(self):
         message = { 'task' : 'register', 'id' : self.worker_id }
@@ -72,13 +73,12 @@ class Worker():
             logger.info('Received: %r ' % final_str )
             logger.info('Received from: %s ' % host )
 
-            to_send = self.proccess_msg(json.loads(final_str)) # process message
+            to_send = self.proccess_msg(json_loads(final_str)) # process message
 
-            if to_send is not None:
-                msg_json = json.dumps(to_send)
-                parsed_msg = self.parse_msg(msg_json)
-                logger.info('Sending to: %s' % host)
-                writer.write(parsed_msg.encode()) # send message
+            msg_json = json.dumps(to_send)
+            parsed_msg = self.parse_msg(msg_json)
+            logger.info('Sending to: %s' % host)
+            writer.write(parsed_msg.encode()) # send message
 
         logger.info('Close the socket')
         writer.close()
