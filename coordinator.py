@@ -29,9 +29,9 @@ class Coordinator():
         if(message['task'] == 'register'):
             return
         self.data_array.put(message['value'])
-        return self.get_new_msg()
+        # return self.scheduler()
 
-    def get_new_msg(self):
+    def scheduler(self):
         #Tambem nao queremos fazer muito mais porque senao perdemos muito trabalho
         queueSize = self.data_array.qsize()
         if(queueSize >= 2):
@@ -48,12 +48,15 @@ class Coordinator():
                 new_message.append(self.data_array.get())
                 result = {'task': 'reduce_request', 'value': new_message}
                 return result
-        else:
+        else: # number of maps to reduce < 2. Send a blob
+            if len(datastore) > 0:
+                new_message = datastore.pop() # get blob from out queue
+                result = {'task': 'map_request', 'value': new_message}
+                return result
             end = time.time()
             logger.info('TIME TAKEN: %f (s)', end-start)
             result = {'task': 'done', 'value': 'done'}
             return result
-
 
     def parse_msg(self, msg):
         msg_len = len(msg)
@@ -61,15 +64,15 @@ class Coordinator():
 
     async def handle_echo(self, reader, writer):
 
-        # start by sending blobs in datastore
-        for blob in self.datastore:
-            msg = {'task': 'map_request', 'value': blob}
-            msg_json = json.dumps(msg)
-            parsed_msg = self.parse_msg(msg_json)
-            # logger.info('Sending to: %s ', addr )
-            writer.write(parsed_msg.encode())
+        # # start by sending blobs in datastore
+        # for blob in self.datastore:
+        #     msg = {'task': 'map_request', 'value': blob}
+        #     msg_json = json.dumps(msg)
+        #     parsed_msg = self.parse_msg(msg_json)
+        #     # logger.info('Sending to: %s ', addr )
+        #     writer.write(parsed_msg.encode())
 
-        await writer.drain()
+        # await writer.drain()
 
         while True:
             data = await reader.read(7)
@@ -91,8 +94,9 @@ class Coordinator():
             logger.info('Received from: %s ', addr )
 
             message = final_str
+            self.proccess_msg(message)
 
-            to_send = self.proccess_msg(message)
+            to_send = self.scheduler
             if to_send is not None:
                 connectionsMap[addr] = to_send
 
