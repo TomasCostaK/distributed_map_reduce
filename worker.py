@@ -55,7 +55,7 @@ class Worker():
         while True:
 
             data = await reader.read(7)
-            logger.info('Received (size of json str): %r ' % data.decode() )
+            # logger.info('Received (size of json str): %r ' % data.decode() )
 
             cur_size = 0  
             total_size = int(data.decode())
@@ -69,7 +69,7 @@ class Worker():
             data = await reader.read(total_size - cur_size )
             final_str = final_str + data.decode()
 
-            logger.info('Received: %r ' % final_str )
+            # logger.info('Received: %r ' % final_str )
             logger.info('Received from: %s ' % host )
 
             to_send = self.proccess_msg(json.loads(final_str)) # process message
