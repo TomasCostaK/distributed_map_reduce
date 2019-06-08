@@ -7,7 +7,7 @@ import asyncio
 import queue
 import time
 import json
-
+import signal
 
 logging.basicConfig(level=logging.DEBUG,
                     format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
@@ -18,12 +18,45 @@ connectionsMap = {}
 # queue_out = queue.Queue()
 
 class Coordinator():
-    def __init__(self, datastore, data_array):
-        self.datastore = datastore
+    def __init__(self, id_c, file_path, blob_size, file_out):
+        self.id = id_c
+        self.datastore = []
         self.connectionsMap = {}
-        self.data_array = data_array  # array that stores results from mapping and reducing
+        self.data_array = queue.Queue()  # array that stores results from mapping and reducing
         self.last_reduced = False
         self.time_started = False
+        self.file_path = file_path
+        self.file_read = False
+        self.blob_size = blob_size
+        self.file_out = file_out
+
+    def read_file(self):
+        # load txt file and divide it into blobs
+        with self.file_path as f:
+            while True:
+                blob = f.read(self.blob_size)
+                if not blob:
+                    break
+                # This loop is used to not break word in half
+                while not str.isspace(blob[-1]):
+                    ch = f.read(1)
+                    if not ch:
+                        break
+                    blob += ch
+                logger.debug('\nBlob: %s', blob)
+                self.datastore.append(blob)
+
+        logger.debug('Number of blobs: %s', len(self.datastore))
+
+    def print_to_file(self):
+        hist = self.data_array.get()
+        # store final histogram into a CSV file
+        with self.file_out as f:
+            csv_writer = csv.writer(f, delimiter=',',
+                                    quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
+            for w, c in hist:
+                csv_writer.writerow([w, c])
 
     def proccess_msg(self, message_json):
         message = json.loads(message_json)
@@ -70,17 +103,16 @@ class Coordinator():
         msg_len = len(msg)
         return '0'*(7-len(str(int(msg_len)))) + str(msg_len) + msg
 
-    async def handle_echo(self, reader, writer):
+    async def register(self, host, port, loop):
+        msg = { 'task' : 'attempt_main', 'value' : self.id }
+        msg_json = json.dumps(msg)        
+        parsed_msg = self.parse_msg(msg_json)
+        while True:
+            if not data:
+                break # become main coordinator
+            pass
 
-        # # start by sending blobs in datastore
-        # for blob in self.datastore:
-        #     msg = {'task': 'map_request', 'value': blob}
-        #     msg_json = json.dumps(msg)
-        #     parsed_msg = self.parse_msg(msg_json)
-        #     # logger.info('Sending to: %s ', addr )
-        #     writer.write(parsed_msg.encode())
-
-        # await writer.drain()
+    async def handle_client(self, reader, writer):
 
         while True:
             data = await reader.read(7)
@@ -123,33 +155,22 @@ class Coordinator():
         logger.debug("Close the client socket")
         writer.close()
 
+def close_server(loop, server):
+    loop.stop()
+    server.close()
+    loop.run_until_complete(server.wait_closed())
+    loop.close()
+
 def main(args):
-    datastore = []
-    data_array = queue.Queue()  # array that stores results from mapping and reducing
 
-    # load txt file and divide it into blobs
-    with args.file as f:
-        while True:
-            blob = f.read(args.blob_size)
-            if not blob:
-                break
-            # This loop is used to not break word in half
-            while not str.isspace(blob[-1]):
-                ch = f.read(1)
-                if not ch:
-                    break
-                blob += ch
-            logger.debug('\nBlob: %s', blob)
-            datastore.append(blob)
+    coordinator = Coordinator(args.file, args.blob_size, args.out)
 
-    logger.debug('Number of blobs: %s', len(datastore))
+    coordinator.read_file()
 
-    coordinator = Coordinator(datastore, data_array)
-
-    # queue_out.put(json.dumps({'task': 'map_request', 'value': blob}))
+    coordinator.register()
 
     loop = asyncio.get_event_loop()
-    coro = asyncio.start_server(coordinator.handle_echo, 'localhost', args.port, loop=loop)
+    coro = asyncio.start_server(coordinator.handle_client, 'localhost', args.port, loop=loop)
     server = loop.run_until_complete(coro)
 
     # Serve requests until Ctrl+C is pressed
@@ -159,20 +180,23 @@ def main(args):
     except KeyboardInterrupt:
         pass
 
-    # Close the server
-    server.close()
-    loop.run_until_complete(server.wait_closed())
-    loop.close()
+    close_server(loop, server)
+    coordinator.print_to_file()
 
-    print("data_array size: ", data_array.qsize())
-    hist = data_array.get()
-    # store final histogram into a CSV file
-    with args.out as f:
-        csv_writer = csv.writer(f, delimiter=',',
-                                quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    # # Close the server
+    # server.close()
+    # loop.run_until_complete(server.wait_closed())
+    # loop.close()
 
-        for w, c in hist:
-            csv_writer.writerow([w, c])
+    # print("data_array size: ", data_array.qsize())
+    # hist = data_array.get()
+    # # store final histogram into a CSV file
+    # with args.out as f:
+    #     csv_writer = csv.writer(f, delimiter=',',
+    #                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
+
+    #     for w, c in hist:
+    #         csv_writer.writerow([w, c])
 
 
 if __name__ == '__main__':
