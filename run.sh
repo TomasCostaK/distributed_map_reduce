@@ -16,6 +16,5 @@ worker3_pid=$!
 
 python3 worker.py --id 4 
 worker4_pid=$!
-
 # kill $worker_pid
 # kill $coordinator_pid
