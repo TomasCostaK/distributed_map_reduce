@@ -54,7 +54,15 @@ class Worker():
 
         while True:
 
-            data = await reader.read(7)
+            # receive data
+            try: 
+                data = await reader.read(7)
+            except ConnectionResetError:
+                break
+
+            if not data:
+                break
+
             # logger.info('Received (size of json str): %r ' % data.decode() )
 
             cur_size = 0  
