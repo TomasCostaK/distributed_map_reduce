@@ -133,7 +133,6 @@ def main(args):
                 blob += ch
             logger.debug('\nBlob: %s', blob)
             datastore.append(blob)
-            start = time.time()
 
     logger.debug('Number of blobs: %s', len(datastore))
 
