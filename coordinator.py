@@ -22,11 +22,13 @@ class Coordinator():
         self.datastore = datastore
         self.connectionsMap = {}
         self.data_array = data_array  # array that stores results from mapping and reducing
-        self.start = time.time()
+        self.last_reduced = False
+        self.time_started = False
 
     def proccess_msg(self, message_json):
         message = json.loads(message_json)
-        if(message['task'] == 'register'):
+        if(message['task'] == 'register') and not self.time_started:
+            self.start = time.time()
             return
         self.data_array.put(message['value'])
         # return self.scheduler()
@@ -53,6 +55,12 @@ class Coordinator():
                 result = {'task': 'reduce_request', 'value': new_message}
                 return result
         else: # done
+            if not self.last_reduced and queueSize > 0:
+                new_message = []
+                new_message.append(self.data_array.get())
+                result = {'task': 'reduce_request', 'value': new_message}
+                self.last_reduced = True
+                return result
             end = time.time()
             logger.info('TIME TAKEN: %f (s)', end-self.start)
             result = {'task': 'done', 'value': 'done'}
