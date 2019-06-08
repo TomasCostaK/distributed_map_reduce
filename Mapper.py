@@ -13,18 +13,13 @@ class Mapper():
 	    self.logger = logging.getLogger('mapper')
 
 	def map(self,blob):
-            table = str.maketrans(dict.fromkeys('0123456789'))
-            translator = str.maketrans('', '', string.punctuation)
-
-            translated = blob.translate(translator)
-            # remove digits
-            translated = translated.translate(table)
-
-            # remove line breaks
-            translated = translated.replace('\n',' ')
+            tokens = blob.lower()
+            tokens = tokens.translate(str.maketrans('', '', string.digits))
+            tokens = tokens.translate(str.maketrans('', '', string.punctuation))
+            tokens = tokens.rstrip()
 			
             wordArray = []
-            arrayMapper = sorted( re.split("\s",translated), key=cmp_to_key(locale.strcoll))
+            arrayMapper = sorted( tokens.split(), key=cmp_to_key(locale.strcoll))
 
             for word in arrayMapper:
                 if word.isalpha():
