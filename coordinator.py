@@ -34,7 +34,11 @@ class Coordinator():
     def scheduler(self):
         #Tambem nao queremos fazer muito mais porque senao perdemos muito trabalho
         queueSize = self.data_array.qsize()
-        if(queueSize >= 2):
+        if(len(self.datastore) > 0): # blobs available
+            new_message = self.datastore.pop() # get blob from out queue
+            result = {'task': 'map_request', 'value': new_message}
+            return result
+        elif(queueSize >= 2):
             if(queueSize % 2 == 0): #enviamos 2 sempre que pares
                 new_message = []
                 new_message.append(self.data_array.get())
@@ -48,11 +52,7 @@ class Coordinator():
                 new_message.append(self.data_array.get())
                 result = {'task': 'reduce_request', 'value': new_message}
                 return result
-        else: # number of maps to reduce < 2. Send a blob
-            if len(self.datastore) > 0:
-                new_message = self.datastore.pop() # get blob from out queue
-                result = {'task': 'map_request', 'value': new_message}
-                return result
+        else: # done
             end = time.time()
             logger.info('TIME TAKEN: %f (s)', end-start)
             result = {'task': 'done', 'value': 'done'}
