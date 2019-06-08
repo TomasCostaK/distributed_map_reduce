@@ -9,7 +9,6 @@ from Mapper import Mapper
 from Reducer import Reducer
 
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',datefmt='%m-%d %H:%M:%S')
-logger = logging.getLogger('worker') 
 
 class Worker():
 
@@ -19,7 +18,8 @@ class Worker():
         self.worker_id = worker_id
         self.mapper = Mapper()
         self.reducer = Reducer()
-        logger.debug('Worker connecting to %s:%d', self.host, self.port)
+        self.logger = logging.getLogger('worker ' + str(self.worker_id))
+        self.logger.debug('Worker connecting to %s:%d', self.host, self.port)
 
     def parse_msg(self, msg):
         msg_len = len(msg)
@@ -49,7 +49,7 @@ class Worker():
         to_send = self.register() # register on first time
         msg_json = json.dumps(to_send)
         parsed_msg = self.parse_msg(msg_json)
-        logger.info('Sending to: %s' % host)
+        self.logger.info('Sending to: %s' % host)
         writer.write(parsed_msg.encode()) # send message
 
         while True:
@@ -70,21 +70,21 @@ class Worker():
             final_str = final_str + data.decode()
 
             # logger.info('Received: %r ' % final_str )
-            logger.info('Received from: %s ' % host )
+            self.logger.info('Received from: %s ' % host )
 
             to_send = self.proccess_msg(json.loads(final_str)) # process message
 
             if to_send is not None:
                 msg_json = json.dumps(to_send)
                 parsed_msg = self.parse_msg(msg_json)
-                logger.info('Sending to: %s' % host)
+                self.logger.info('Sending to: %s' % host)
                 writer.write(parsed_msg.encode()) # send message
 
-        logger.info('Close the socket')
+        self.logger.info('Close the socket')
         writer.close()
 
 def main(args):
-    worker = Worker(1, args.hostname, args.port)
+    worker = Worker(args.id, args.hostname, args.port)
     
     # message = 'Hello World'
     # worker.send(message)
