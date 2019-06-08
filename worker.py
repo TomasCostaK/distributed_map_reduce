@@ -28,12 +28,12 @@ class Worker():
     def proccess_msg(self, msg):
         # msg = self.queue_in.get()
         if msg['task'] == 'map_request':
-            logger.debug('THIS IS A MAP REQ')
+            # logger.debug('THIS IS A MAP REQ')
             result = self.mapper.map(msg['value'])
             reply = { 'task' : 'map_reply', 'value' : result }
             return reply
         elif msg['task'] == 'reduce_request':
-            logger.debug('THIS IS A REDUCE REQ')
+            # logger.debug('THIS IS A REDUCE REQ')
             result = self.reducer.reduce(msg['value'])
             reply = { 'task' : 'reduce_reply', 'value' : result }
             return reply

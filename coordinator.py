@@ -49,8 +49,8 @@ class Coordinator():
                 result = {'task': 'reduce_request', 'value': new_message}
                 return result
         else: # number of maps to reduce < 2. Send a blob
-            if len(datastore) > 0:
-                new_message = datastore.pop() # get blob from out queue
+            if len(self.datastore) > 0:
+                new_message = self.datastore.pop() # get blob from out queue
                 result = {'task': 'map_request', 'value': new_message}
                 return result
             end = time.time()
@@ -96,7 +96,8 @@ class Coordinator():
             message = final_str
             self.proccess_msg(message)
 
-            to_send = self.scheduler
+            to_send = self.scheduler()
+            # logger.debug(to_send)
             if to_send is not None:
                 connectionsMap[addr] = to_send
 
@@ -104,7 +105,7 @@ class Coordinator():
                 parsed_msg = self.parse_msg(msg_json)
 
                 # logger.debug("Sending: %r " % parsed_msg)
-                # logger.info('Sending: %s ', addr )
+                logger.info('Sending to: %s ', addr )
 
                 # logger.info('CONNS MAP: %r' % connectionsMap)
                 
