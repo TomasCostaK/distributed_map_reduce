@@ -1,5 +1,7 @@
 # coding: utf-8
 
+
+import string
 import logging
 import argparse
 import asyncio
@@ -82,6 +84,14 @@ class Worker():
 
         logger.info('Close the socket')
         writer.close()
+
+def tokenizer(text):
+    tokens = text.lower()
+    tokens = tokens.translate(str.maketrans('', '', string.digits))
+    tokens = tokens.line.translate(str.maketrans('', '', string.punctuation))
+    tokens = tokens.rstrip()
+    return tokens.slit()
+
 
 def main(args):
     worker = Worker(1, args.hostname, args.port)
