@@ -8,7 +8,7 @@ while :
 do
 	workers=`pgrep -f worker.py | xargs`
 	coordenators=`pgrep -f coordinator.py | xargs`
-	procs="$workers $coordenators"
+	procs="$workers"
 
 	for pid in $procs; do
 		kill_probability=$((RANDOM % $PROBABILITY))

@@ -85,6 +85,13 @@ class Coordinator():
         while True:
             data = await reader.read(7)
             addr = writer.get_extra_info('peername')
+            if not data:
+                logger.debug("THE MONKEY KILLED: %s", addr)
+                lostMsg = connectionsMap.get(addr)
+                logger.debug("LOST MESSAGE: %s", lostMsg)
+                if lostMsg != None:
+                    self.data_array.put(lostMsg)
+                break
 
             cur_size = 0
             total_size = int(data.decode())
@@ -187,4 +194,5 @@ if __name__ == '__main__':
                         help='blob size', default=1024)
     args = parser.parse_args()
 
-    main(args)
+
+main(args)

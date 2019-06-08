@@ -90,8 +90,10 @@ def main(args):
     # worker.send(message)
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(worker.tcp_echo_client(worker.host, worker.port, loop))
-
+    try:
+        loop.run_until_complete(worker.tcp_echo_client(worker.host, worker.port, loop))
+    except:
+        pass
     loop.close()
 
 if __name__ == '__main__':
