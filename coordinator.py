@@ -16,125 +16,108 @@ logger = logging.getLogger('coordinator')
 
 start = time.time()
 connectionsMap = {}
-queue_out = queue.Queue()
-data_array = queue.Queue()  # array that stores results from mapping and reducing
+# queue_out = queue.Queue()
 
-# def split_data(string):
-#     max_size = 1024
-#     header = { 'type' : 'json_msg', 'size' : len(string), 'value' : '' }
-#     header_len = len(json.dumps(header))
-#     max_chunk_size = max_size - header_len
-#     print(max_chunk_size)
-#     l = []
-#     for i in range(0, len(string), max_chunk_size):
-#         msg = { 'type' : 'json_msg', 'size' : len(string), 'value' : string[i:i+max_chunk_size] }
-#         l.append(json.dumps(msg))
-#         print(len(json.dumps(msg)))
-#         assert len(json.dumps(msg)) == 1024
-#     return l
+class Coordinator():
+    def __init__(self, datastore, data_array):
+        self.datastore = datastore
+        self.connectionsMap = {}
+        self.data_array = data_array  # array that stores results from mapping and reducing
 
+    def proccess_msg(self, message_json):
+        message = json.loads(message_json)
+        if(message['task'] == 'register'):
+            return
+        self.data_array.put(message['value'])
+        # return self.scheduler()
 
-def proccess_msg(message_json):
-    message = json.loads(message_json)
-    if(message['task'] == 'register'):
-        return
-    data_array.put(message['value'])
-    get_new_msg()
+    def scheduler(self):
+        #Tambem nao queremos fazer muito mais porque senao perdemos muito trabalho
+        queueSize = self.data_array.qsize()
+        if(len(self.datastore) > 0): # blobs available
+            new_message = self.datastore.pop() # get blob from out queue
+            result = {'task': 'map_request', 'value': new_message}
+            return result
+        elif(queueSize >= 2):
+            if(queueSize % 2 == 0): #enviamos 2 sempre que pares
+                new_message = []
+                new_message.append(self.data_array.get())
+                new_message.append(self.data_array.get())
+                result = {'task': 'reduce_request', 'value': new_message}
+                return result
+            else: #enviamos 3 sempre que temos impares
+                new_message = []
+                new_message.append(self.data_array.get())
+                new_message.append(self.data_array.get())
+                new_message.append(self.data_array.get())
+                result = {'task': 'reduce_request', 'value': new_message}
+                return result
+        else: # done
+            end = time.time()
+            logger.info('TIME TAKEN: %f (s)', end-start)
+            result = {'task': 'done', 'value': 'done'}
+            return result
 
+    def parse_msg(self, msg):
+        msg_len = len(msg)
+        return '0'*(7-len(str(int(msg_len)))) + str(msg_len) + msg
 
-def get_new_msg():
-    #Tambem nao queremos fazer muito mais porque senao perdemos muito trabalho
-    queueSize = data_array.qsize()
-    if(queueSize >= 2):
-        if(queueSize % 2 == 0): #enviamos 2 sempre que pares
-            new_message = []
-            new_message.append(data_array.get())
-            new_message.append(data_array.get())
-            queue_out.put(json.dumps(
-                {'task': 'reduce_request', 'value': new_message}))
-        else: #enviamos 3 sempre que temos impares
-            new_message = []
-            new_message.append(data_array.get())
-            new_message.append(data_array.get())
-            new_message.append(data_array.get())
-            queue_out.put(json.dumps(
-                {'task': 'reduce_request', 'value': new_message}))
-    else:
-        end = time.time()
-        logger.info('TIME TAKEN: %f (s)', end-start)
+    async def handle_echo(self, reader, writer):
 
+        # # start by sending blobs in datastore
+        # for blob in self.datastore:
+        #     msg = {'task': 'map_request', 'value': blob}
+        #     msg_json = json.dumps(msg)
+        #     parsed_msg = self.parse_msg(msg_json)
+        #     # logger.info('Sending to: %s ', addr )
+        #     writer.write(parsed_msg.encode())
 
-def parse_msg(msg):
-    msg_len = len(msg)
+        # await writer.drain()
 
-    return '0'*(7-len(str(msg_len))) + str(msg_len) + msg
+        while True:
+            data = await reader.read(7)
+            addr = writer.get_extra_info('peername')
 
-    # if msg_len < 10:
-    #     return '000000' + str(msg_len) + msg
-    # elif msg_len < 100:
-    #     return '00000' + str(msg_len) + msg
-    # elif msg_len < 1000:
-    #     return '0000' + str(msg_len) + msg
-    # elif msg_len < 10000:
-    #     return '000' + str(msg_len) + msg
-    # elif msg_len < 100000:
-    #     return '00' + str(msg_len) + msg
-    # elif msg_len < 1000000:
-    #     return '0' + str(msg_len) + msg
-    # elif msg_len < 10000:
-    #     return '00' + str(msg_len) + msg
-    # elif msg_len < 100000:
-    #     return '0' + str(msg_len) + msg
-    # else:
-    #     return str(msg_len) + msg
+            cur_size = 0
+            total_size = int(data.decode())
+            final_str = ''
 
-    
+            while (total_size - cur_size) >= 1024 :
+                data = await reader.read(1024)
+                final_str = final_str + data.decode()
+                cur_size += len(data)
 
-
-async def handle_echo(reader, writer):
-    while True:
-        data = await reader.read(7)
-        addr = writer.get_extra_info('peername')
-
-
-        logger.info('Received (size of json str): %r ' % data.decode())
-
-        cur_size = 0
-        total_size = int(data.decode())
-        final_str = ''
-
-        while (total_size - cur_size) >= 1024 :
-            data = await reader.read(1024)
+            data = await reader.read(total_size - cur_size)
             final_str = final_str + data.decode()
-            cur_size += len(data)
 
-        data = await reader.read(total_size - cur_size)
-        final_str = final_str + data.decode()
+            # logger.info('Received: %r ' % final_str )
+            logger.info('Received from: %s ', addr )
 
-        #logger.info('Received: %r ' % final_str )
-        logger.info('Received from: %s ', addr )
-        message = final_str
+            message = final_str
+            self.proccess_msg(message)
 
-        proccess_msg(message)
+            to_send = self.scheduler()
+            # logger.debug(to_send)
+            if to_send is not None:
+                connectionsMap[addr] = to_send
 
-        message = queue_out.get()
+                msg_json = json.dumps(to_send)
+                parsed_msg = self.parse_msg(msg_json)
 
-        connectionsMap[addr]=message
+                # logger.debug("Sending: %r " % parsed_msg)
+                logger.info('Sending to: %s ', addr )
 
-        #logger.debug("Sending: %r " % parse_msg(message))
-        logger.info('Sending: %s ', addr )
+                # logger.info('CONNS MAP: %r' % connectionsMap)
+                
+                writer.write(parsed_msg.encode())
+                await writer.drain()
 
-        logger.info('CONNS MAP: %r' % connectionsMap)
-        
-        writer.write(parse_msg(message).encode())
-
-        await writer.drain()
-
-    logger.debug("Close the client socket")
-    writer.close()
+        logger.debug("Close the client socket")
+        writer.close()
 
 def main(args):
     datastore = []
+    data_array = queue.Queue()  # array that stores results from mapping and reducing
 
     # load txt file and divide it into blobs
     with args.file as f:
@@ -151,13 +134,16 @@ def main(args):
             logger.debug('\nBlob: %s', blob)
             datastore.append(blob)
             start = time.time()
-            queue_out.put(json.dumps({'task': 'map_request', 'value': blob}))
+
+    logger.debug('Number of blobs: %s', len(datastore))
+
+    coordinator = Coordinator(datastore, data_array)
+
+    # queue_out.put(json.dumps({'task': 'map_request', 'value': blob}))
 
     loop = asyncio.get_event_loop()
-    coro = asyncio.start_server(handle_echo, 'localhost', args.port, loop=loop)
+    coro = asyncio.start_server(coordinator.handle_echo, 'localhost', args.port, loop=loop)
     server = loop.run_until_complete(coro)
-
-    logger.debug('Number of blobs: %s (%s)', len(datastore), queue_out.qsize())
 
     # Serve requests until Ctrl+C is pressed
     print('Serving on {}'.format(server.sockets[0].getsockname()))

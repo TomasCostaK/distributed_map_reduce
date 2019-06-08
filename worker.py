@@ -1,5 +1,7 @@
 # coding: utf-8
 
+
+import string
 import logging
 import argparse
 import asyncio
@@ -19,68 +21,43 @@ class Worker():
         self.worker_id = worker_id
         self.mapper = Mapper()
         self.reducer = Reducer()
-        self.queue_in = queue.Queue()
-        self.queue_out = queue.Queue()
         logger.debug('Worker connecting to %s:%d', self.host, self.port)
-        self.register() # register on first time
 
     def parse_msg(self, msg):
         msg_len = len(msg)
-        return '0'*(7-len(str(msg_len))) + str(msg_len) + msg
-        # if msg_len < 10:
-        #     return '000000' + str(msg_len) + msg
-        # elif msg_len < 100:
-        #     return '00000' + str(msg_len) + msg
-        # elif msg_len < 1000:
-        #     return '0000' + str(msg_len) + msg
-        # elif msg_len < 10000:
-        #     return '000' + str(msg_len) + msg
-        # elif msg_len < 100000:
-        #     return '00' + str(msg_len) + msg
-        # elif msg_len < 1000000:
-        #     return '0' + str(msg_len) + msg
-        # elif msg_len < 10000:
-        #     return '00' + str(msg_len) + msg
-        # elif msg_len < 100000:
-        #     return '0' + str(msg_len) + msg
-        # else:
-        #     return str(msg_len) + msg
+        return '0'*(7-len(str(int(msg_len)))) + str(msg_len) + msg
 
-    def send(self, message):
-        self.queue_out.put(json.dumps(message))
-
-    def receive(self, message):
-        self.queue_in.put(json.loads(message))
-
-    def proccess_msg(self):
-        msg = self.queue_in.get()
+    def proccess_msg(self, msg):
+        # msg = self.queue_in.get()
         if msg['task'] == 'map_request':
             # logger.debug('THIS IS A MAP REQ')
             result = self.mapper.map(msg['value'])
-            self.send({ 'task' : 'map_reply', 'value' : result })
+            reply = { 'task' : 'map_reply', 'value' : result }
+            return reply
         elif msg['task'] == 'reduce_request':
             # logger.debug('THIS IS A REDUCE REQ')
             result = self.reducer.reduce(msg['value'])
-            self.send({ 'task' : 'reduce_reply', 'value' : result })
-        # logger.debug(result)
+            reply = { 'task' : 'reduce_reply', 'value' : result }
+            return reply
 
     def register(self):
         message = { 'task' : 'register', 'id' : self.worker_id }
-        self.send(message)
+        return message
 
     async def tcp_echo_client(self, host, port, loop):
         reader, writer = await asyncio.open_connection(host, port, loop=loop) # open connection
 
-        while True:
-            message_json = self.queue_out.get() # get message from out queue
-            parsed_msg = self.parse_msg(message_json)
+        # register
+        to_send = self.register() # register on first time
+        msg_json = json.dumps(to_send)
+        parsed_msg = self.parse_msg(msg_json)
+        logger.info('Sending to: %s' % host)
+        writer.write(parsed_msg.encode()) # send message
 
-            logger.info('Sending to: %s' % host)
-            #logger.info('Sending: %r' % parsed_msg)
-            writer.write(parsed_msg.encode()) # send message
+        while True:
 
             data = await reader.read(7)
-            logger.info('Received (size of json str): %r ' % data.decode() )
+            # logger.info('Received (size of json str): %r ' % data.decode() )
 
             cur_size = 0  
             total_size = int(data.decode())
@@ -94,15 +71,27 @@ class Worker():
             data = await reader.read(total_size - cur_size )
             final_str = final_str + data.decode()
 
-            #logger.info('Received: %r ' % final_str )
+            # logger.info('Received: %r ' % final_str )
             logger.info('Received from: %s ' % host )
 
-            self.receive(final_str) # receive message
+            to_send = self.proccess_msg(json.loads(final_str)) # process message
 
-            self.proccess_msg() # process message
+            if to_send is not None:
+                msg_json = json.dumps(to_send)
+                parsed_msg = self.parse_msg(msg_json)
+                logger.info('Sending to: %s' % host)
+                writer.write(parsed_msg.encode()) # send message
 
         logger.info('Close the socket')
         writer.close()
+
+def tokenizer(text):
+    tokens = text.lower()
+    tokens = tokens.translate(str.maketrans('', '', string.digits))
+    tokens = tokens.line.translate(str.maketrans('', '', string.punctuation))
+    tokens = tokens.rstrip()
+    return tokens.slit()
+
 
 def main(args):
     worker = Worker(1, args.hostname, args.port)
