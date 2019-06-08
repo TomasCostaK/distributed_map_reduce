@@ -114,6 +114,8 @@ class Coordinator():
             to_send = self.scheduler()
             # logger.debug(to_send)
             if to_send is not None:
+                if connectionsMap.get(addr) != None:
+                    connectionsMap.pop(addr)
                 connectionsMap[addr] = to_send
 
                 msg_json = json.dumps(to_send)
