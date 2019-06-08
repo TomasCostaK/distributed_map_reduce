@@ -14,7 +14,6 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%m-%d %H:%M:%S')
 logger = logging.getLogger('coordinator')
 
-start = time.time()
 connectionsMap = {}
 # queue_out = queue.Queue()
 
@@ -23,6 +22,7 @@ class Coordinator():
         self.datastore = datastore
         self.connectionsMap = {}
         self.data_array = data_array  # array that stores results from mapping and reducing
+        self.start = time.time()
 
     def proccess_msg(self, message_json):
         message = json.loads(message_json)
@@ -54,7 +54,7 @@ class Coordinator():
                 return result
         else: # done
             end = time.time()
-            logger.info('TIME TAKEN: %f (s)', end-start)
+            logger.info('TIME TAKEN: %f (s)', end-self.start)
             result = {'task': 'done', 'value': 'done'}
             return result
 
@@ -157,6 +157,7 @@ def main(args):
     loop.run_until_complete(server.wait_closed())
     loop.close()
 
+    print("data_array size: ", data_array.qsize())
     hist = data_array.get()
     # store final histogram into a CSV file
     with args.out as f:
