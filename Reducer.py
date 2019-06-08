@@ -1,51 +1,139 @@
 import logging
+import locale
+from functools import cmp_to_key
+
+locale.setlocale(locale.LC_ALL, 'pt_PT.UTF-8')
 
 class Reducer:
-	"""docstring for Reducer"""
-	def __init__(self):
-		logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',datefmt='%m-%d %H:%M:%S')
-		self.logger = logging.getLogger('reducer')
+    """docstring for Reducer"""
+    def __init__(self):
+        logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',datefmt='%m-%d %H:%M:%S')
+        self.logger = logging.getLogger('reducer')
 
-	def reduce(self,array1,array2):
-		arrayFinal = []
-		for tup in array1:
-			notThere = True
-			word = tup[0]
-			value = tup[1]
-			for tup2 in arrayFinal:
-				if word==tup2[0]:
-					value=tup2[1]
-					arrayFinal.remove(tup2)
-					arrayFinal.append((word,value+1))
-					notThere= False
-					break
-			if notThere:
-				arrayFinal.append(tup)
+    def reduce(self, array_of_arrays):
+        # Caso so receba um map para dar reduce, vamos ter que enviar juntamento com 
+        # uma lista vazia pq so aceitamos 2 listas ou mais
+        if (len(array_of_arrays) == 1): #verificar este workaround
+            array_of_arrays.append([])
+        
+        while(len(array_of_arrays) > 1):
+            #Criar sempre o arrayFinal que vai estar reduced
+            arrayFinal = []
 
-		for tup in array2:
-			notThere = True
-			word = tup[0]
-			value = tup[1]
-			for tup2 in arrayFinal:
-				if word==tup2[0]:
-					value=tup2[1]
-					arrayFinal.remove(tup2)
-					arrayFinal.append((word,value+1))
-					notThere = False
-					break
-			if notThere:
-				arrayFinal.append(tup)
+            #Escolher os 2 primeiros enviados
+            array1 = array_of_arrays[0]
+            array2 = array_of_arrays[1]
 
-		# for mapSet in array1:
-		# 	inThere = False
-		# 	word = next(iter(mapSet))
-		# 	numero = mapSet.get(word)
-		# 	print(word, end=' ')
-		# 	print(numero)
+            #Retirar os 2 primeiros enviados, fazer o seu processing
+            array_of_arrays.remove(array1)
+            array_of_arrays.remove(array2)
 
-		# 	if mapSet in arrayFinal:
-		# 		print("Im in")
+            #Remover repetidos que estao seguidos do array1
+            array1 = self.removeRepeats(array1)
 
-		# 	else:
-		# 		arrayFinal.append((word,1))	
-		return arrayFinal
+            #Remover repetidos que estao seguidos do array2
+            array2 = self.removeRepeats(array2)
+
+            #Check which list is smallest 
+            # (This code doesnt look very good, think abut it later)
+            n = len(array1)
+            m = len(array2)
+
+            if n>=m:
+                smallArray = array2
+                bigArray = array1
+            else:
+                smallArray = array1
+                bigArray = array2
+
+            #Iterate over small array
+            self.iterateSmallArray(smallArray,bigArray,arrayFinal)
+
+            #Sort them with mergesort with locale PT
+            self.mergeSort(arrayFinal) 
+
+            array_of_arrays.append(arrayFinal)	
+
+        #Indice 0 para nao retornar como array de arrays    
+        return array_of_arrays[0]
+
+    def binarySearch (self, arr, left, right, x): 
+        # Check base case 
+        if right >= left: 
+            mid = left + (right - left)//2
+            # If element is present at the middle itself 
+            if arr[mid][0] == x: 
+                ret = arr[mid][1]
+                arr.pop(mid)
+                return ret
+
+            # If element is smaller than mid, then it  
+            # can only be present in left subarray 
+            elif locale.strcoll(arr[mid][0], x) > 0: 
+                return self.binarySearch(arr, left, mid-1, x) 
+    
+            # Else the element can only be present  
+            # in right subarray 
+            else: 
+                return self.binarySearch(arr, mid + 1, right, x) 
+        else: 
+            # Element is not present in the array 
+            return 0
+
+    def mergeSort(self,arr): 
+        if len(arr) >1: 
+            mid = len(arr)//2 #Finding the mid of the array 
+            L = arr[:mid] # Dividing the array elements  
+            R = arr[mid:] # into 2 halves 
+    
+            self.mergeSort(L) # Sorting the first half 
+            self.mergeSort(R) # Sorting the second half 
+    
+            i = j = k = 0
+            
+            # Copy data to temp arrays L[] and R[] 
+            while i < len(L) and j < len(R): 
+                if locale.strcoll(L[i][0],R[j][0]) <0: 
+                    arr[k] = L[i] 
+                    i+=1
+                else: 
+                    arr[k] = R[j] 
+                    j+=1
+                k+=1
+            
+            # Checking if any element was left 
+            while i < len(L): 
+                arr[k] = L[i] 
+                i+=1
+                k+=1
+            
+            while j < len(R): 
+                arr[k] = R[j] 
+                j+=1
+                k+=1
+        
+    def iterateSmallArray(self,smallArray, bigArray, arrayFinal):
+        #Go through both arrays to join them into one
+        for word,count in smallArray:
+            #Este binary search vai retornar
+            count2 = self.binarySearch(bigArray, 0 , len(bigArray)-1, word)
+            countFinal = count2 + count
+
+            arrayFinal.append((word,countFinal))
+
+            #Append the rest to the array
+        arrayFinal.extend(bigArray)
+
+    
+    def removeRepeats(self, arr):
+        arrayTemp = []
+        arraySize = len(arr)-1
+        ind = 0
+        while ind <= arraySize:
+            count = arr[ind][1]
+            while(ind<arraySize and arr[ind]==arr[ind+1]):
+                count+=1
+                ind+=1;
+            arrayTemp.append((arr[ind][0],count))
+            ind+=1
+        return arrayTemp
