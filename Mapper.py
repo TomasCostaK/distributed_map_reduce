@@ -16,6 +16,7 @@ class Mapper():
             tokens = blob.lower()
             tokens = tokens.translate(str.maketrans('', '', string.digits))
             tokens = tokens.translate(str.maketrans('', '', string.punctuation))
+	    tokens = tokens.translate(str.maketrans('', '', '«»'))
             tokens = tokens.rstrip()
 			
             wordArray = []
