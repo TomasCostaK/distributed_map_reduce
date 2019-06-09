@@ -54,7 +54,15 @@ class Worker():
 
         while True:
 
-            data = await reader.read(7)
+            # receive data
+            try: 
+                data = await reader.read(7)
+            except ConnectionResetError:
+                break
+
+            # if not data:
+            #     continue
+
             # logger.info('Received (size of json str): %r ' % data.decode() )
 
             cur_size = 0  
@@ -90,10 +98,8 @@ def main(args):
     # worker.send(message)
 
     loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(worker.tcp_echo_client(worker.host, worker.port, loop))
-    except:
-        pass
+    loop.run_until_complete(worker.tcp_echo_client(worker.host, worker.port, loop))
+
     loop.close()
 
 if __name__ == '__main__':

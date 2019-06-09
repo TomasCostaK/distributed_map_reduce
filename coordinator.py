@@ -22,6 +22,7 @@ class Coordinator():
         self.datastore = datastore
         self.connectionsMap = {}
         self.data_array = data_array  # array that stores results from mapping and reducing
+        self.lost_msgs = queue.Queue()
         self.last_reduced = False
         self.time_started = False
 
@@ -36,9 +37,13 @@ class Coordinator():
     def scheduler(self):
         #Tambem nao queremos fazer muito mais porque senao perdemos muito trabalho
         queueSize = self.data_array.qsize()
+        lost_msgs_size = self.lost_msgs.qsize()
         if(len(self.datastore) > 0): # blobs available
             new_message = self.datastore.pop() # get blob from out queue
             result = {'task': 'map_request', 'value': new_message}
+            return result
+        elif(lost_msgs_size > 0):
+            result = self.lost_msgs.get()
             return result
         elif(queueSize >= 2):
             if(queueSize % 2 == 0): #enviamos 2 sempre que pares
@@ -85,12 +90,15 @@ class Coordinator():
         while True:
             data = await reader.read(7)
             addr = writer.get_extra_info('peername')
-            if not data:
+            
+            if not data or data == '':
                 logger.debug("THE MONKEY KILLED: %s", addr)
                 lostMsg = connectionsMap.get(addr)
                 logger.debug("LOST MESSAGE: %s", lostMsg)
                 if lostMsg != None:
-                    self.data_array.put(lostMsg)
+                    self.lost_msgs.put(lostMsg)
+                # logger.debug("Close the client socket")
+                # writer.close()
                 break
 
             cur_size = 0
