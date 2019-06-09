@@ -275,12 +275,12 @@ def main(args):
     loop.run_until_complete(coordinator.register('localhost', args.port, loop))
     loop.close()
 
-    if not coordinator.file_read:
-        coordinator.read_file()
-
     loop = asyncio.new_event_loop()
     coro = asyncio.start_server(coordinator.handle_client, 'localhost', args.port, loop=loop)
     server = loop.run_until_complete(coro)
+
+    if not coordinator.file_read:
+        coordinator.read_file()
 
     # Serve requests until Ctrl+C is pressed
     print('Serving on {}'.format(server.sockets[0].getsockname()))
