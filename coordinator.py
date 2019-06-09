@@ -22,7 +22,7 @@ class Coordinator():
         self.id = id_c
         self.datastore = []
         self.connectionsMap = {}
-        self.data_array = data_array  # array that stores results from mapping and reducing
+        self.data_array = queue.Queue()  # array that stores results from mapping and reducing
         self.lost_msgs = queue.Queue()
         self.last_reduced = False
         self.start_time = None
