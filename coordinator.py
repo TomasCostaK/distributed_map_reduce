@@ -22,7 +22,8 @@ class Coordinator():
         self.id = id_c
         self.datastore = []
         self.connectionsMap = {}
-        self.data_array = queue.Queue()  # array that stores results from mapping and reducing
+        self.data_array = data_array  # array that stores results from mapping and reducing
+        self.lost_msgs = queue.Queue()
         self.last_reduced = False
         self.start_time = None
         self.file_path = file_path
@@ -106,10 +107,13 @@ class Coordinator():
 
         #Tambem nao queremos fazer muito mais porque senao perdemos muito trabalho
         queueSize = self.data_array.qsize()
-
+        lost_msgs_size = self.lost_msgs.qsize()
         if(len(self.datastore) > 0): # blobs available
             new_message = self.datastore.pop() # get blob from out queue
             result = {'task': 'map_request', 'value': new_message}
+            return result
+        elif(lost_msgs_size > 0):
+            result = self.lost_msgs.get()
             return result
         elif(queueSize >= 2):
             if(queueSize % 2 == 0): #enviamos 2 sempre que pares
@@ -219,6 +223,16 @@ class Coordinator():
         while True:
             data = await reader.read(7)
             addr = writer.get_extra_info('peername')
+            
+            if not data or data == '':
+                logger.debug("THE MONKEY KILLED: %s", addr)
+                lostMsg = connectionsMap.get(addr)
+                logger.debug("LOST MESSAGE: %s", lostMsg)
+                if lostMsg != None:
+                    self.lost_msgs.put(lostMsg)
+                # logger.debug("Close the client socket")
+                # writer.close()
+                break
 
             cur_size = 0
             total_size = int(data.decode())
@@ -244,6 +258,8 @@ class Coordinator():
             to_send = self.scheduler()
             # logger.debug(to_send)
             if to_send is not None:
+                if connectionsMap.get(addr) != None:
+                    connectionsMap.pop(addr)
                 connectionsMap[addr] = to_send
 
                 msg_json = json.dumps(to_send)
@@ -322,4 +338,5 @@ if __name__ == '__main__':
                         help='coordinator id', default=1)
     args = parser.parse_args()
 
-    main(args)
+
+main(args)
