@@ -152,9 +152,6 @@ class Coordinator():
                 end = time.time()
                 logger.info('TIME TAKEN: %f (s)', end-self.start_time)
                 result = {'task': 'done', 'value': 'done'}
-                # if not self.file_written:
-                #     self.print_to_file()
-                #     self.file_written = True
                 return result
 
 
@@ -323,7 +320,10 @@ def main(args):
         pass
 
     close_server(loop, server)
-    coordinator.print_to_file()
+    # coordinator.print_to_file()
+    if not coordinator.file_written:
+        coordinator.print_to_file()
+        coordinator.file_written = True
 
     # # Close the server
     # server.close()
