@@ -28,6 +28,7 @@ class Coordinator():
         self.start_time = None
         self.file_path = file_path
         self.file_read = False
+        self.file_written = False
         self.blob_size = blob_size
         self.file_out = file_out
         self.i_am_main = False
@@ -37,7 +38,10 @@ class Coordinator():
         return { 'datastore' : self.datastore, 
                  'connectionsMap' : self.connectionsMap, 
                  'data_array' : list(self.data_array.queue), 
+                 'lost_msgs' : list(self.lost_msgs.queue),
+                 'last_reduced' : self.last_reduced,
                  'file_read' : self.file_read,
+                 'file_written' : self.file_written,
                  'start_time' : self.start_time
                  }
 
@@ -45,8 +49,18 @@ class Coordinator():
         logger.debug('Restoring state')
         self.datastore = state['datastore']
         self.connectionsMap = state['connectionsMap']
+
+        self.data_array.queue.clear()
         [self.data_array.put(i) for i in state['data_array']]
+
+        self.lost_msgs.queue.clear()
+        [self.lost_msgs.put(i) for i in state['lost_msgs']]
+        for addr, msg in self.connectionsMap.items(): # treat last messages sent as lost messages
+            self.lost_msgs.put(msg)
+
+        self.last_reduced = state['last_reduced']
         self.file_read = state['file_read']
+        self.file_written = state['file_written']
         self.start_time = state['start_time']
 
     def read_file(self):
@@ -77,6 +91,7 @@ class Coordinator():
 
             for w, c in hist:
                 csv_writer.writerow([w, c])
+        logger.debug('PRINT TO FILE DONE')
 
     def proccess_msg(self, message_json):
         message = json.loads(message_json)
@@ -86,11 +101,8 @@ class Coordinator():
         elif message['task'] == 'attempt_main':
             if message['value'] == self.id: # i am sending this to myself
                 self.i_am_main = True
-                self.pending_coordinator_request = True
-                return
-            else:
-                self.pending_coordinator_request = True
-                return
+            self.pending_coordinator_request = True
+            return
         elif message['task'] == 'map_reply' or message['task'] == 'reduce_reply':
             self.data_array.put(message['value'])
             return
@@ -140,6 +152,9 @@ class Coordinator():
                 end = time.time()
                 logger.info('TIME TAKEN: %f (s)', end-self.start_time)
                 result = {'task': 'done', 'value': 'done'}
+                # if not self.file_written:
+                #     self.print_to_file()
+                #     self.file_written = True
                 return result
 
 
@@ -209,6 +224,7 @@ class Coordinator():
 
             # logger.info('Received: %r ' % final_str )
             logger.info('(REGISTER) Received from: %s ', addr )
+            logger.info('(REGISTER) Datastore: %s, Data_Array: %s', len(self.datastore), self.data_array.qsize())
 
             message = final_str
             self.proccess_msg(message)
@@ -267,6 +283,7 @@ class Coordinator():
 
                 # logger.debug("Sending: %r " % parsed_msg)
                 logger.info('Sending to: %s ', addr )
+                logger.info('Datastore: %s, Data_Array: %s', len(self.datastore), self.data_array.qsize())
 
                 # logger.info('CONNS MAP: %r' % connectionsMap)
                 
