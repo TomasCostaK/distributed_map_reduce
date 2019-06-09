@@ -14,7 +14,6 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%m-%d %H:%M:%S')
 logger = logging.getLogger('coordinator')
 
-start = time.time()
 connectionsMap = {}
 # queue_out = queue.Queue()
 
@@ -23,10 +22,13 @@ class Coordinator():
         self.datastore = datastore
         self.connectionsMap = {}
         self.data_array = data_array  # array that stores results from mapping and reducing
+        self.last_reduced = False
+        self.time_started = False
 
     def proccess_msg(self, message_json):
         message = json.loads(message_json)
-        if(message['task'] == 'register'):
+        if(message['task'] == 'register') and not self.time_started:
+            self.start = time.time()
             return
         self.data_array.put(message['value'])
         # return self.scheduler()
@@ -53,8 +55,14 @@ class Coordinator():
                 result = {'task': 'reduce_request', 'value': new_message}
                 return result
         else: # done
+            if not self.last_reduced and queueSize > 0:
+                new_message = []
+                new_message.append(self.data_array.get())
+                result = {'task': 'reduce_request', 'value': new_message}
+                self.last_reduced = True
+                return result
             end = time.time()
-            logger.info('TIME TAKEN: %f (s)', end-start)
+            logger.info('TIME TAKEN: %f (s)', end-self.start)
             result = {'task': 'done', 'value': 'done'}
             return result
 
@@ -133,7 +141,6 @@ def main(args):
                 blob += ch
             logger.debug('\nBlob: %s', blob)
             datastore.append(blob)
-            start = time.time()
 
     logger.debug('Number of blobs: %s', len(datastore))
 
@@ -157,6 +164,7 @@ def main(args):
     loop.run_until_complete(server.wait_closed())
     loop.close()
 
+    print("data_array size: ", data_array.qsize())
     hist = data_array.get()
     # store final histogram into a CSV file
     with args.out as f:
