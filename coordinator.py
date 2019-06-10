@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.DEBUG,
 logger = logging.getLogger('coordinator')
 
 MAX_N_BYTES = 16
+MAX_N_BYTES_PART = 1024
 
 # connectionsMap = {}
 # queue_out = queue.Queue()
@@ -99,7 +100,7 @@ class Coordinator():
 
             for w, c in hist:
                 csv_writer.writerow([w, c])
-        self.print_to_file = True
+        self.file_written = True
         logger.debug('PRINT TO FILE DONE')
 
     def proccess_msg(self, message_json, addr=None):
@@ -222,8 +223,8 @@ class Coordinator():
             total_size = int(data.decode())
             final_str = ''
 
-            while (total_size - cur_size) >= 1024 :
-                data = await reader.read(1024)
+            while (total_size - cur_size) >= MAX_N_BYTES_PART :
+                data = await reader.read(MAX_N_BYTES_PART)
                 if not data:
                     # logger.debug('BREAK3')
                     break # become main coordinator
@@ -266,7 +267,7 @@ class Coordinator():
 
                 if lostMsg != None and addr_str in self.clients_list: # killed was a client
                     self.lost_msgs.put(lostMsg)
-                    self.clients_list.pop(addr_str)
+                    self.clients_list.remove(addr_str)
 
                 if len(self.clients_list) > 0:
                     break
@@ -275,8 +276,8 @@ class Coordinator():
             total_size = int(data.decode())
             final_str = ''
 
-            while (total_size - cur_size) >= 1024 :
-                data = await reader.read(1024)
+            while (total_size - cur_size) >= MAX_N_BYTES_PART :
+                data = await reader.read(MAX_N_BYTES_PART)
                 final_str = final_str + data.decode()
                 cur_size += len(data)
 
