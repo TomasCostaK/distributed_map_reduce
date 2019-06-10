@@ -43,6 +43,7 @@ class Worker():
         return message
 
     async def tcp_echo_client(self, host, port, loop):
+        self.logger.debug('Openning connection')
         reader, writer = await asyncio.open_connection(host, port, loop=loop) # open connection
 
         # register
@@ -51,10 +52,21 @@ class Worker():
         parsed_msg = self.parse_msg(msg_json)
         self.logger.info('Sending to: %s' % host)
         writer.write(parsed_msg.encode()) # send message
+        await writer.drain()
 
         while True:
 
-            data = await reader.read(7)
+            # receive data
+            try: 
+                data = await reader.read(7)
+            except ConnectionResetError:
+                await asyncio.sleep(3) # give the backup coordinator time to start 
+                break
+
+            if not data:
+                await asyncio.sleep(3) # give the backup coordinator time to start 
+                break
+
             # logger.info('Received (size of json str): %r ' % data.decode() )
 
             cur_size = 0  
@@ -79,6 +91,7 @@ class Worker():
                 parsed_msg = self.parse_msg(msg_json)
                 self.logger.info('Sending to: %s' % host)
                 writer.write(parsed_msg.encode()) # send message
+                await writer.drain()
 
         self.logger.info('Close the socket')
         writer.close()
@@ -90,7 +103,12 @@ def main(args):
     # worker.send(message)
 
     loop = asyncio.get_event_loop()
-    loop.run_until_complete(worker.tcp_echo_client(worker.host, worker.port, loop))
+
+    while True:
+        try:
+            loop.run_until_complete(worker.tcp_echo_client(worker.host, worker.port, loop))
+        except KeyboardInterrupt:
+            break
 
     loop.close()
 
