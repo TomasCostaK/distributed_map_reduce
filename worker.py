@@ -10,6 +10,8 @@ from Reducer import Reducer
 
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',datefmt='%m-%d %H:%M:%S')
 
+MAX_N_BYTES = 16
+
 class Worker():
 
     def __init__(self, worker_id, host, port):
@@ -23,7 +25,7 @@ class Worker():
 
     def parse_msg(self, msg):
         msg_len = len(msg)
-        return '0'*(7-len(str(int(msg_len)))) + str(msg_len) + msg
+        return '0'*(MAX_N_BYTES-len(str(int(msg_len)))) + str(msg_len) + msg
 
     def proccess_msg(self, msg):
         # msg = self.queue_in.get()
@@ -37,6 +39,8 @@ class Worker():
             result = self.reducer.reduce(msg['value'])
             reply = { 'task' : 'reduce_reply', 'value' : result }
             return reply
+        else:
+            self.logger.debug('THIS IS NOT FOR ME')
 
     def register(self):
         message = { 'task' : 'register', 'id' : self.worker_id }
@@ -58,7 +62,7 @@ class Worker():
 
             # receive data
             try: 
-                data = await reader.read(7)
+                data = await reader.read(MAX_N_BYTES)
             except ConnectionResetError:
                 await asyncio.sleep(3) # give the backup coordinator time to start 
                 break
@@ -67,7 +71,7 @@ class Worker():
                 await asyncio.sleep(3) # give the backup coordinator time to start 
                 break
 
-            # logger.info('Received (size of json str): %r ' % data.decode() )
+            # self.logger.info('Received (size of json str): %r ' % data.decode() )
 
             cur_size = 0  
             total_size = int(data.decode())
@@ -81,7 +85,7 @@ class Worker():
             data = await reader.read(total_size - cur_size )
             final_str = final_str + data.decode()
 
-            # logger.info('Received: %r ' % final_str )
+            # self.logger.info('Received: %r ' % final_str['task'] )
             self.logger.info('Received from: %s ' % host )
 
             to_send = self.proccess_msg(json.loads(final_str)) # process message
