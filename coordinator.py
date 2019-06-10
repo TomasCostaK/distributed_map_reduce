@@ -14,7 +14,10 @@ logging.basicConfig(level=logging.DEBUG,
                     datefmt='%m-%d %H:%M:%S')
 logger = logging.getLogger('coordinator')
 
-connectionsMap = {}
+MAX_N_BYTES = 16
+CHUNK = 1024
+
+# connectionsMap = {}
 # queue_out = queue.Queue()
 
 class Coordinator():
@@ -28,16 +31,23 @@ class Coordinator():
         self.start_time = None
         self.file_path = file_path
         self.file_read = False
+        self.file_written = False
         self.blob_size = blob_size
         self.file_out = file_out
         self.i_am_main = False
         self.pending_coordinator_request = False
+        self.clients_list = []
 
     def full_state(self):
-        return { 'datastore' : self.datastore, 
-                 'connectionsMap' : self.connectionsMap, 
+        # logger.debug('CONNS MAP TOP SEND: %s', self.connectionsMap)
+        return { 'datastore' : self.datastore[:], 
+                 'connectionsMap' : self.connectionsMap.copy(), 
                  'data_array' : list(self.data_array.queue), 
+                 'lost_msgs' : list(self.lost_msgs.queue),
+                 'clients_list' : self.clients_list[:],
+                 'last_reduced' : self.last_reduced,
                  'file_read' : self.file_read,
+                 'file_written' : self.file_written,
                  'start_time' : self.start_time
                  }
 
@@ -45,8 +55,21 @@ class Coordinator():
         logger.debug('Restoring state')
         self.datastore = state['datastore']
         self.connectionsMap = state['connectionsMap']
+        self.clients_list = state['clients_list']
+
+        self.data_array.queue.clear()
         [self.data_array.put(i) for i in state['data_array']]
+
+        self.lost_msgs.queue.clear()
+        [self.lost_msgs.put(i) for i in state['lost_msgs']]
+        for addr, msg in self.connectionsMap.items(): # treat last messages sent as lost messages
+            self.lost_msgs.put(msg)
+
+        # logger.debug('LOST MSGS RCVD: %s', list(self.lost_msgs.queue))
+
+        self.last_reduced = state['last_reduced']
         self.file_read = state['file_read']
+        self.file_written = state['file_written']
         self.start_time = state['start_time']
 
     def read_file(self):
@@ -77,26 +100,36 @@ class Coordinator():
 
             for w, c in hist:
                 csv_writer.writerow([w, c])
+        self.file_written = True
+        logger.debug('PRINT TO FILE DONE')
 
-    def proccess_msg(self, message_json):
-        message = json.loads(message_json)
-        if(message['task'] == 'register') and self.start_time is None:
-            self.start_time = time.time()
+    def proccess_msg(self, message_json, addr=None):
+        try:
+            message = json.loads(message_json)
+        except json.decoder.JSONDecodeError:
+            logger.debug('Error on JSON parse: %s', message_json[:30])
+            return
+
+        if(message['task'] == 'register'):
+            if self.start_time is None:
+                self.start_time = time.time()
+            if addr is not None:
+                self.clients_list.append(addr)
             return
         elif message['task'] == 'attempt_main':
             if message['value'] == self.id: # i am sending this to myself
                 self.i_am_main = True
-                self.pending_coordinator_request = True
-                return
-            else:
-                self.pending_coordinator_request = True
-                return
+            self.pending_coordinator_request = True
+            return
         elif message['task'] == 'map_reply' or message['task'] == 'reduce_reply':
             self.data_array.put(message['value'])
             return
         elif message['task'] == 'coordinator_reply':
             self.restore_state(message['value'])
             return
+        else:
+            # logger.debug('THIS IS NOT FOR ME !!! %s', message['task'])
+            pass
         # return self.scheduler()
 
     def scheduler(self):
@@ -113,6 +146,7 @@ class Coordinator():
             result = {'task': 'map_request', 'value': new_message}
             return result
         elif(lost_msgs_size > 0):
+            # logger.debug('LOST MSGS: %s', lost_msgs_size)
             result = self.lost_msgs.get()
             return result
         elif(queueSize >= 2):
@@ -145,7 +179,7 @@ class Coordinator():
 
     def parse_msg(self, msg):
         msg_len = len(msg)
-        return '0'*(7-len(str(int(msg_len)))) + str(msg_len) + msg
+        return '0'*(MAX_N_BYTES-len(str(int(msg_len)))) + str(msg_len) + msg
 
     async def register(self, host, port, loop):
         try:
@@ -162,7 +196,7 @@ class Coordinator():
 
         while True:
             if self.i_am_main: # i am already the main coordinator
-                logger.debug('BREAK1')
+                # logger.debug('BREAK1')
                 break
 
             # send request to main coordinator
@@ -171,14 +205,14 @@ class Coordinator():
 
             # receive data
             try: 
-                data = await reader.read(7)
+                data = await reader.read(MAX_N_BYTES)
             except ConnectionResetError:
                 # if not data:
-                logger.debug('BREAK2')
+                # logger.debug('BREAK2')
                 break # become main coordinator
 
             if not data:
-                logger.debug('BREAK2.1')
+                # logger.debug('BREAK2.1')
                 break # become main coordinator
 
             addr = writer.get_extra_info('peername')
@@ -189,10 +223,10 @@ class Coordinator():
             total_size = int(data.decode())
             final_str = ''
 
-            while (total_size - cur_size) >= 1024 :
-                data = await reader.read(1024)
+            while (total_size - cur_size) >= CHUNK :
+                data = await reader.read(CHUNK)
                 if not data:
-                    logger.debug('BREAK3')
+                    # logger.debug('BREAK3')
                     break # become main coordinator
 
                 final_str = final_str + data.decode()
@@ -202,13 +236,14 @@ class Coordinator():
                 data = await reader.read(total_size - cur_size)
 
             if not data:
-                logger.debug('BREAK4')
+                # logger.debug('BREAK4')
                 break # become main coordinator
 
             final_str = final_str + data.decode()
 
             # logger.info('Received: %r ' % final_str )
             logger.info('(REGISTER) Received from: %s ', addr )
+            # logger.info('(REGISTER) Datastore: %s, Data_Array: %s', len(self.datastore), self.data_array.qsize())
 
             message = final_str
             self.proccess_msg(message)
@@ -221,25 +256,28 @@ class Coordinator():
     async def handle_client(self, reader, writer):
 
         while True:
-            data = await reader.read(7)
+            data = await reader.read(MAX_N_BYTES)
             addr = writer.get_extra_info('peername')
+            addr_str = str(addr)
             
             if not data or data == '':
-                logger.debug("THE MONKEY KILLED: %s", addr)
-                lostMsg = connectionsMap.get(addr)
-                logger.debug("LOST MESSAGE: %s", lostMsg)
-                if lostMsg != None:
+                logger.debug("THE MONKEY KILLED: %s", addr_str)
+                lostMsg = self.connectionsMap.get(addr_str)
+                # logger.debug("LOST MESSAGE: %s", lostMsg)
+
+                if lostMsg != None and addr_str in self.clients_list: # killed was a client
                     self.lost_msgs.put(lostMsg)
-                # logger.debug("Close the client socket")
-                # writer.close()
-                break
+                    self.clients_list.remove(addr_str)
+
+                if len(self.clients_list) > 0:
+                    break
 
             cur_size = 0
             total_size = int(data.decode())
             final_str = ''
 
-            while (total_size - cur_size) >= 1024 :
-                data = await reader.read(1024)
+            while (total_size - cur_size) >= CHUNK :
+                data = await reader.read(CHUNK)
                 final_str = final_str + data.decode()
                 cur_size += len(data)
 
@@ -250,25 +288,27 @@ class Coordinator():
             final_str = final_str + data.decode()
 
             # logger.info('Received: %r ' % final_str )
-            logger.info('Received from: %s ', addr )
+            logger.info('Received from: %s ', addr_str )
 
             message = final_str
-            self.proccess_msg(message)
+            self.proccess_msg(message, addr_str)
 
             to_send = self.scheduler()
             # logger.debug(to_send)
             if to_send is not None:
-                if connectionsMap.get(addr) != None:
-                    connectionsMap.pop(addr)
-                connectionsMap[addr] = to_send
+                if addr_str in self.clients_list:
+                    if self.connectionsMap.get(addr_str) != None:
+                        self.connectionsMap.pop(addr_str)
+                    self.connectionsMap[addr_str] = to_send
 
                 msg_json = json.dumps(to_send)
                 parsed_msg = self.parse_msg(msg_json)
 
                 # logger.debug("Sending: %r " % parsed_msg)
-                logger.info('Sending to: %s ', addr )
+                logger.info('Sending to: %s ', addr_str )
+                # logger.info('Datastore: %s, Data_Array: %s', len(self.datastore), self.data_array.qsize())
 
-                # logger.info('CONNS MAP: %r' % connectionsMap)
+                # logger.info('CONNS MAP: %r' % self.connectionsMap)
                 
                 writer.write(parsed_msg.encode())
                 await writer.drain()
@@ -306,7 +346,10 @@ def main(args):
         pass
 
     close_server(loop, server)
-    coordinator.print_to_file()
+    # coordinator.print_to_file()
+    if not coordinator.file_written:
+        coordinator.print_to_file()
+        coordinator.file_written = True
 
     # # Close the server
     # server.close()
