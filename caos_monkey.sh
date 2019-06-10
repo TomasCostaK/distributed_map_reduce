@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 PERIOD=${1:-1}
-RECOVER=${2:-10}
+RECOVER=${2:-3}
 PROBABILITY=${3:-10}
 
 while :
