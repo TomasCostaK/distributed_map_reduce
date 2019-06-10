@@ -108,3 +108,6 @@ venv.bak/
 
 # vim .swp files
 *.swp
+
+# output.csv
+output.csv
