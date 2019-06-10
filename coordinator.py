@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.DEBUG,
 logger = logging.getLogger('coordinator')
 
 MAX_N_BYTES = 16
-MAX_N_BYTES_PART = 1024
+CHUNK = 1024
 
 # connectionsMap = {}
 # queue_out = queue.Queue()
@@ -223,8 +223,8 @@ class Coordinator():
             total_size = int(data.decode())
             final_str = ''
 
-            while (total_size - cur_size) >= MAX_N_BYTES_PART :
-                data = await reader.read(MAX_N_BYTES_PART)
+            while (total_size - cur_size) >= CHUNK :
+                data = await reader.read(CHUNK)
                 if not data:
                     # logger.debug('BREAK3')
                     break # become main coordinator
@@ -276,8 +276,8 @@ class Coordinator():
             total_size = int(data.decode())
             final_str = ''
 
-            while (total_size - cur_size) >= MAX_N_BYTES_PART :
-                data = await reader.read(MAX_N_BYTES_PART)
+            while (total_size - cur_size) >= CHUNK :
+                data = await reader.read(CHUNK)
                 final_str = final_str + data.decode()
                 cur_size += len(data)
 

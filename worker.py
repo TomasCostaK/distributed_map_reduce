@@ -11,7 +11,7 @@ from Reducer import Reducer
 logging.basicConfig(level=logging.DEBUG,format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',datefmt='%m-%d %H:%M:%S')
 
 MAX_N_BYTES = 16
-MAX_N_BYTES_PART = 1024
+CHUNK = 1024
 
 class Worker():
 
@@ -80,8 +80,8 @@ class Worker():
             total_size = int(data.decode())
             final_str = ''
 
-            while (total_size - cur_size) >= MAX_N_BYTES_PART :
-                data = await reader.read(MAX_N_BYTES_PART)
+            while (total_size - cur_size) >= CHUNK :
+                data = await reader.read(CHUNK)
                 final_str = final_str + data.decode()
                 cur_size += len(data)
 
