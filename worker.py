@@ -39,8 +39,10 @@ class Worker():
             result = self.reducer.reduce(msg['value'])
             reply = { 'task' : 'reduce_reply', 'value' : result }
             return reply
+        elif msg['task'] == 'done':
+            pass
         else:
-            self.logger.debug('THIS IS NOT FOR ME')
+            self.logger.debug('THIS IS NOT FOR ME: %s', msg['task'])
 
     def register(self):
         message = { 'task' : 'register', 'id' : self.worker_id }
